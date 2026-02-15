@@ -28,11 +28,13 @@ async function debugPermissions(token: string) {
 async function resolveInstagramContext(initialToken: string): Promise<InstagramContext> {
     // 0. SPECIAL CASE: If token starts with "IGAAQ", it's an Instagram Graph/Basic token.
     // We CANNOT query graph.facebook.com with this. We must rely on configured ID.
-    if (initialToken.startsWith('IGAAQ')) {
-        console.log('[Instagram API] Detected IGAAQ token. Bypassing Facebook Page discovery.');
+    // 0. SPECIAL CASE: If token starts with "IGAAQ" or "IGAAR", it's an Instagram Graph/Basic token.
+    // We CANNOT query graph.facebook.com with this. We must rely on configured ID.
+    if (initialToken.startsWith('IGAAQ') || initialToken.startsWith('IGAAR')) {
+        console.log('[Instagram API] Detected IGAAQ/IGAAR token. Bypassing Facebook Page discovery.');
         const configuredUserId = process.env.INSTAGRAM_USER_ID;
         if (!configuredUserId) {
-            throw new Error('IGAAQ token detected but INSTAGRAM_USER_ID is missing in .env.local');
+            throw new Error('IGAAQ/IGAAR token detected but INSTAGRAM_USER_ID is missing in .env.local');
         }
         return {
             pageAccessToken: initialToken,

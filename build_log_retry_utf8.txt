@@ -1,0 +1,70 @@
+﻿
+> beauty-heaven@0.1.0 build
+> next build
+
+Γû▓ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+Γ£ô Compiled successfully in 14.1s
+  Running TypeScript ...
+node.exe : Failed to 
+compile.
+At line:1 char:1
++ & "C:\Program Files
+\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (Failed    
+ to compile.:Stri    
+ng) [], RemoteEx    
+ception
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+
+./scripts/verify-lib.
+ts:3:24
+Type error: Cannot 
+find module 
+'dotenv-expand' or 
+its corresponding 
+type declarations.
+
+[0m [90m 1 |[39m
+ [90m 2 |[39m 
+[36mimport[39m 
+dotenv 
+[36mfrom[39m [32m'
+dotenv'[39m[33m;[3
+9m
+[31m[1m>[22m[39m
+[90m 3 |[39m 
+[36mimport[39m { 
+expand } 
+[36mfrom[39m [32m'
+dotenv-expand'[39m[
+33m;[39m
+ [90m   |[39m      
+                  
+[31m[1m^[22m[39m
+ [90m 4 |[39m 
+[36mimport[39m 
+path [36mfrom[39m 
+[32m'path'[39m[33m;
+[39m
+ [90m 5 |[39m
+ [90m 6 |[39m 
+[90m// Load env 
+vars[39m[0m
+Next.js build worker 
+exited with code: 1 
+and signal: null

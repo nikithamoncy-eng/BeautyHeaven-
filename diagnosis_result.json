@@ -1,0 +1,35 @@
+{
+  "token_preview": "IGAARbdWH1...",
+  "permissions": [],
+  "user": null,
+  "pages": [],
+  "permissions_error": {
+    "message": "Invalid OAuth access token - Cannot parse access token",
+    "type": "OAuthException",
+    "code": 190,
+    "fbtrace_id": "ATvZYsg4ycghahsalatJh_g"
+  },
+  "user_error": {
+    "message": "Invalid OAuth access token - Cannot parse access token",
+    "type": "OAuthException",
+    "code": 190,
+    "fbtrace_id": "Ambt2IaCGoLGxKk-7_AmM69"
+  },
+  "specific_page_check": {
+    "id": "561329063734175",
+    "data": {
+      "error": {
+        "message": "Invalid OAuth access token - Cannot parse access token",
+        "type": "OAuthException",
+        "code": 190,
+        "fbtrace_id": "A_YoAstFyTdouIUcoEtnLic"
+      }
+    },
+    "error": {
+      "message": "Invalid OAuth access token - Cannot parse access token",
+      "type": "OAuthException",
+      "code": 190,
+      "fbtrace_id": "A_YoAstFyTdouIUcoEtnLic"
+    }
+  }
+}
