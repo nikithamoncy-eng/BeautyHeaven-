@@ -15,6 +15,10 @@ create index if not exists idx_conversation_history_user_id on conversation_hist
 create table if not exists conversation_states (
   user_id text primary key, -- One state per user
   is_paused boolean default false,
+  username text,
+  user_name text,
+  profile_pic text,
+  last_message_at timestamp with time zone default timezone('utc'::text, now()),
   last_interaction timestamp with time zone default timezone('utc'::text, now()),
   updated_at timestamp with time zone default timezone('utc'::text, now())
 );
