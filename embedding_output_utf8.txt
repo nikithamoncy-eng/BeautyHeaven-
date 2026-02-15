@@ -1,0 +1,4 @@
+﻿[dotenv@17.2.4] injecting env (6) from .env.local -- tip: ΓÜÖ∩╕Å  specify custom .env file path with { path: '/custom/path/.env' }
+Testing Gemini Embedding with API Key: AIzaSyDzpY...
+Success! Embedding generated.
+Dimensions: 3072

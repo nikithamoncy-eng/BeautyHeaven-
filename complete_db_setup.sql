@@ -44,12 +44,12 @@ create table if not exists knowledge_base_vectors (
   id uuid default gen_random_uuid() primary key,
   item_id uuid references knowledge_base_items(id) on delete cascade,
   content text not null,
-  embedding vector(3072) -- Dimension for Gemini models/gemini-embedding-001
+  embedding vector(3072) -- Dimension for gemini-embedding-001
 );
 
 -- Index for similarity search
-create index on knowledge_base_vectors using ivfflat (embedding vector_cosine_ops)
-with (lists = 100);
+-- Index for similarity search (HNSW for >2000 dimensions)
+create index on knowledge_base_vectors using hnsw (embedding vector_cosine_ops);
 
 -- 5. Create RPC function for Similarity Search
 create or replace function match_knowledge_base (

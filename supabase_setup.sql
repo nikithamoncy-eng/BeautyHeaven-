@@ -33,5 +33,4 @@ create table if not exists knowledge_base_vectors (
 );
 
 -- Index for faster vector similarity search
-create index on knowledge_base_vectors using ivfflat (embedding vector_cosine_ops)
-with (lists = 100);
+create index on knowledge_base_vectors using hnsw (embedding vector_cosine_ops);
