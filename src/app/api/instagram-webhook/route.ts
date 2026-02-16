@@ -49,86 +49,106 @@ export async function POST(req: Request) {
                 for (const messagingEvent of entry.messaging) {
                     console.log(`[Webhook] Processing messagingEvent: ${JSON.stringify(messagingEvent)}`);
 
-                    // Ignore messages sent by the page itself (echoes)
-                    if (messagingEvent.message?.is_echo) {
-                        console.log('Ignoring echo message.');
+                    // Explicitly handle and log different event types
+                    if (messagingEvent.message_edit) {
+                        console.log(`[Webhook] Received MESSAGE_EDIT event (ignoring): ${JSON.stringify(messagingEvent.message_edit)}`);
                         continue;
                     }
 
-                    if (messagingEvent.message && messagingEvent.message.text) {
-                        const senderId = messagingEvent.sender.id;
-                        const messageText = messagingEvent.message.text;
-                        const messageId = messagingEvent.message.mid;
+                    if (messagingEvent.delivery) {
+                        console.log(`[Webhook] Received DELIVERY event: ${JSON.stringify(messagingEvent.delivery)}`);
+                        continue;
+                    }
 
-                        console.log(`[Webhook] Valid message received. Sender: ${senderId}, Text: "${messageText}"`);
+                    if (messagingEvent.read) {
+                        console.log(`[Webhook] Received READ event: ${JSON.stringify(messagingEvent.read)}`);
+                        continue;
+                    }
 
-                        // 0. SELF-MESSAGE CHECK
-                        // Ignore messages sent by the bot itself to avoid infinite loops
-                        const myUserId = process.env.INSTAGRAM_USER_ID;
-                        if (senderId === myUserId) {
-                            console.log(`[Webhook] Ignoring self-message from ${senderId}`);
+                    if (messagingEvent.message) {
+                        // Ignore messages sent by the page itself (echoes)
+                        if (messagingEvent.message.is_echo) {
+                            console.log('Ignoring echo message.');
                             continue;
                         }
 
-                        // Idempotency: Attempt to insert message_id directly.
-                        if (messageId) {
-                            const { error: insertError } = await supabase
-                                .from('processed_messages')
-                                .insert({ message_id: messageId });
+                        if (messagingEvent.message.text) {
+                            const senderId = messagingEvent.sender.id;
+                            const messageText = messagingEvent.message.text;
+                            const messageId = messagingEvent.message.mid;
 
-                            if (insertError) {
-                                // PostgreSQL code 23505 is unique_violation
-                                if (insertError.code === '23505') {
-                                    console.log(`[Webhook] SKIPPING DUPLICATE message (DB constraint): ${messageId}`);
-                                    continue;
-                                } else {
-                                    console.error('[Webhook] CRITICAL DB ERROR during idempotency check:', insertError);
-                                    // STOP PROCESSING. If we can't verify uniqueness, we risk duplicates.
-                                    // Better to fail and let Instagram retry (hopefully DB recovers) than to spam replies.
-                                    continue;
+                            console.log(`[Webhook] Valid message received. Sender: ${senderId}, Text: "${messageText}"`);
+
+                            // 0. SELF-MESSAGE CHECK
+                            // Ignore messages sent by the bot itself to avoid infinite loops
+                            const myUserId = process.env.INSTAGRAM_USER_ID;
+                            if (senderId === myUserId) {
+                                console.log(`[Webhook] Ignoring self-message from ${senderId}`);
+                                continue;
+                            }
+
+                            // Idempotency: Attempt to insert message_id directly.
+                            if (messageId) {
+                                const { error: insertError } = await supabase
+                                    .from('processed_messages')
+                                    .insert({ message_id: messageId });
+
+                                if (insertError) {
+                                    // PostgreSQL code 23505 is unique_violation
+                                    if (insertError.code === '23505') {
+                                        console.log(`[Webhook] SKIPPING DUPLICATE message (DB constraint): ${messageId}`);
+                                        continue;
+                                    } else {
+                                        console.error('[Webhook] CRITICAL DB ERROR during idempotency check:', insertError);
+                                        // STOP PROCESSING. If we can't verify uniqueness, we risk duplicates.
+                                        // Better to fail and let Instagram retry (hopefully DB recovers) than to spam replies.
+                                        continue;
+                                    }
                                 }
                             }
-                        }
 
-                        console.log(`[Webhook] ACCEPTED message ${messageId} from ${senderId}: "${messageText.substring(0, 50)}..."`);
+                            console.log(`[Webhook] ACCEPTED message ${messageId} from ${senderId}: "${messageText.substring(0, 50)}..."`);
 
-                        // 1. Fetch User Profile (Async, don't block too long but we need it for DB)
-                        // We do this here to ensure we have the latest info.
-                        const userProfile = await getInstagramUserProfile(senderId);
-                        console.log(`[Webhook] User Profile fetched: ${JSON.stringify(userProfile)}`);
+                            // 1. Fetch User Profile (Async, don't block too long but we need it for DB)
+                            // We do this here to ensure we have the latest info.
+                            const userProfile = await getInstagramUserProfile(senderId);
+                            console.log(`[Webhook] User Profile fetched: ${JSON.stringify(userProfile)}`);
 
-                        // Upsert Conversation State (Update last_message_at and user details)
-                        const upsertData: any = {
-                            user_id: senderId,
-                            last_message_at: new Date().toISOString()
-                        };
+                            // Upsert Conversation State (Update last_message_at and user details)
+                            const upsertData: any = {
+                                user_id: senderId,
+                                last_message_at: new Date().toISOString()
+                            };
 
-                        if (userProfile) {
-                            upsertData.user_name = userProfile.name;
-                            upsertData.username = userProfile.username;
-                            upsertData.profile_pic = userProfile.profile_pic;
-                        }
+                            if (userProfile) {
+                                upsertData.user_name = userProfile.name;
+                                upsertData.username = userProfile.username;
+                                upsertData.profile_pic = userProfile.profile_pic;
+                            }
 
-                        const { error: upsertError } = await supabase
-                            .from('conversation_states')
-                            .upsert(upsertData, { onConflict: 'user_id' });
+                            const { error: upsertError } = await supabase
+                                .from('conversation_states')
+                                .upsert(upsertData, { onConflict: 'user_id' });
 
-                        if (upsertError) {
-                            console.error('[Webhook] Error upserting conversation state:', upsertError);
-                        }
+                            if (upsertError) {
+                                console.error('[Webhook] Error upserting conversation state:', upsertError);
+                            }
 
-                        // Process the message synchronously to ensure Vercel/Lambda stays alive.
-                        // Since we have strict idempotency now, we don't worry about timeouts causing retries (retries will be skipped).
-                        try {
-                            console.log('[Webhook] Calling processBotResponse...');
-                            // Use the new reusable bot engine
-                            await processBotResponse(senderId, messageText);
-                            console.log('[Webhook] processBotResponse completed.');
-                        } catch (err) {
-                            console.error('[Process Error]', err);
+                            // Process the message synchronously to ensure Vercel/Lambda stays alive.
+                            // Since we have strict idempotency now, we don't worry about timeouts causing retries (retries will be skipped).
+                            try {
+                                console.log('[Webhook] Calling processBotResponse...');
+                                // Use the new reusable bot engine
+                                await processBotResponse(senderId, messageText);
+                                console.log('[Webhook] processBotResponse completed.');
+                            } catch (err) {
+                                console.error('[Process Error]', err);
+                            }
+                        } else {
+                            console.log('[Webhook] Messaging event does not contain text message (maybe attachment/reaction?)');
                         }
                     } else {
-                        console.log('[Webhook] Messaging event does not contain text message (maybe attachment/reaction?)');
+                        console.log('[Webhook] Unknown messaging event type:', Object.keys(messagingEvent));
                     }
                 }
             }
