@@ -37,12 +37,17 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
     try {
+        console.log('[Webhook] Received POST request');
         const body = await req.json();
+        console.log('[Webhook] POST Body:', JSON.stringify(body, null, 2));
 
         // Check if this is a page event
         if (body.object === 'instagram' || body.object === 'page') {
+            console.log(`[Webhook] Processing object: ${body.object}`);
             for (const entry of body.entry) {
+                console.log(`[Webhook] Processing entry: ${JSON.stringify(entry)}`);
                 for (const messagingEvent of entry.messaging) {
+                    console.log(`[Webhook] Processing messagingEvent: ${JSON.stringify(messagingEvent)}`);
 
                     // Ignore messages sent by the page itself (echoes)
                     if (messagingEvent.message?.is_echo) {
@@ -54,6 +59,8 @@ export async function POST(req: Request) {
                         const senderId = messagingEvent.sender.id;
                         const messageText = messagingEvent.message.text;
                         const messageId = messagingEvent.message.mid;
+
+                        console.log(`[Webhook] Valid message received. Sender: ${senderId}, Text: "${messageText}"`);
 
                         // 0. SELF-MESSAGE CHECK
                         // Ignore messages sent by the bot itself to avoid infinite loops
@@ -88,6 +95,7 @@ export async function POST(req: Request) {
                         // 1. Fetch User Profile (Async, don't block too long but we need it for DB)
                         // We do this here to ensure we have the latest info.
                         const userProfile = await getInstagramUserProfile(senderId);
+                        console.log(`[Webhook] User Profile fetched: ${JSON.stringify(userProfile)}`);
 
                         // Upsert Conversation State (Update last_message_at and user details)
                         const upsertData: any = {
@@ -101,22 +109,32 @@ export async function POST(req: Request) {
                             upsertData.profile_pic = userProfile.profile_pic;
                         }
 
-                        await supabase
+                        const { error: upsertError } = await supabase
                             .from('conversation_states')
                             .upsert(upsertData, { onConflict: 'user_id' });
+
+                        if (upsertError) {
+                            console.error('[Webhook] Error upserting conversation state:', upsertError);
+                        }
 
                         // Process the message synchronously to ensure Vercel/Lambda stays alive.
                         // Since we have strict idempotency now, we don't worry about timeouts causing retries (retries will be skipped).
                         try {
+                            console.log('[Webhook] Calling processBotResponse...');
                             // Use the new reusable bot engine
                             await processBotResponse(senderId, messageText);
+                            console.log('[Webhook] processBotResponse completed.');
                         } catch (err) {
                             console.error('[Process Error]', err);
                         }
+                    } else {
+                        console.log('[Webhook] Messaging event does not contain text message (maybe attachment/reaction?)');
                     }
                 }
             }
             return new NextResponse('EVENT_RECEIVED', { status: 200 });
+        } else {
+            console.log(`[Webhook] Unknown object type: ${body.object}`);
         }
 
         return new NextResponse('Not Found', { status: 404 });
